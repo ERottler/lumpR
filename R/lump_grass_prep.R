@@ -482,12 +482,16 @@ lump_grass_prep <- function(
       }
   
       # transformations ...
-      svc_cats_grp <- grep("^0", svc_cats, invert=T, value=T) #remove zero entries
-      svc_cats_sub <- gsub(",|;", "", svc_cats_grp)
-      svc_cats_spl <- strsplit(svc_cats_sub, "category|Category")
+      svc_cats_spl <- strsplit(svc_cats, ";|,")
+      svc_cats_unl <- unlist(svc_cats_spl)
+      svc_cats_num <- as.numeric(gsub("category|Category", "", svc_cats_unl))
+
+      if(is.integer(length(svc_cats_num)/ 5)) {
+        stop("Number of categorial information cannot be devided into number of SVC!")
+      }
   
       if (!is.null(watermask) & !is.null(imperviousmask)) {
-        svc_cats_mat_t <- matrix(as.integer(unlist(svc_cats_spl)),ncol=5, byrow=T)
+        svc_cats_mat_t <- matrix(as.integer(unlist(svc_cats_num)), ncol=5, byrow=T)
         colnames(svc_cats_mat_t) <- c("pid", "soil_id", "veg_id", "water", "impervious") # same order as input of "r.cross"!
         svc_cats_mat <- svc_cats_mat_t[,-5]
         colnames(svc_cats_mat)[4] <- "special_area"
