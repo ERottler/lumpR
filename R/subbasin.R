@@ -411,8 +411,8 @@ calc_subbas <- function(
         stats <- zonal(accum, basins, fun="max")
      
         # remove calculated watershed outlet (point of maximum flow accumulation) as this has been given as input
-        stats <- stats[-which(stats[2] == max(stats[2])), ]
-        stats = apply(FUN=as.integer, MAR=2, X=stats) #convert to integer
+        stats <- stats[-which(stats[, 2] == max(stats[, 2])), ]
+        stats = apply(stats, 2, as.integer) #convert to integer
         
         # get coordinates of outlets
         outs <- apply(stats, 1, function(x) {
