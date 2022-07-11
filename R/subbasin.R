@@ -577,7 +577,14 @@ calc_subbas <- function(
         cmd_out = strsplit(cmd_out, split = ";")                     # split entries
         
         #get maximum subbas_id in entire list
-        max_subbas_id=max(as.numeric(sapply(FUN=max, cmd_out))) #number of columns
+        nun_max <- function(data_in){
+          
+          data_in_num <- as.numeric(data_in)
+          data_in_max <- max(data_in_num, na.rm = T)
+          return(data_in_max)
+          
+        }
+        max_subbas_id <- max(sapply(cmd_out, nun_max))
         
         #n_comb = max(sapply(FUN=length, cmd_out))  #get number of columns to produce
         #subbas_combinations = array(NA, c(length(cmd_out), n_comb))
