@@ -480,14 +480,14 @@ lump_grass_prep <- function(
       if(any(grepl("no data", svc_cats))) {
         stop("Raster maps 'soil', 'lcov', 'watermask', and/or 'impervious' mask contain NULL values within 'mask' which is not allowed!")
       }
-  
-      # transformations ...
+      
+      # prepare r.category output to be transformed to matrix
       svc_cats_spl <- strsplit(svc_cats, ";|,")
       svc_cats_unl <- unlist(svc_cats_spl)
       svc_cats_num <- as.numeric(gsub("category|Category", "", svc_cats_unl))
 
-      if(is.integer(length(svc_cats_num)/ 5)) {
-        stop("Number of categorial information cannot be devided into number of SVC!")
+      if(length(svc_cats_num) %% 5 == 0) {
+        stop("Unexpected output format of r.category while computing svs!")
       }
   
       if (!is.null(watermask) & !is.null(imperviousmask)) {
