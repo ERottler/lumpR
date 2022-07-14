@@ -113,7 +113,7 @@ reservoir_outlet <- function(
   # if (!any(grepl(cmd_out, pattern="CHARACTER\\|name")))
   #   stop(paste0("Reservoir vector file '",res_vct,"' has no column 'name' (CHARACTER), please add it."))
   
-  if (!any(grepl(cmd_out, pattern="\\|area"))) #add area field in hectars, if not present
+  if (!any(grepl(cmd_out, pattern="\\|area"))) #add area field in hectares, if not present
   {  
     x <- execGRASS("v.db.addcolumn", map=res_vct, columns="area double", intern=TRUE) 
     x <- execGRASS("v.to.db", map=res_vct, option="area", columns="area", units="hectares", intern=TRUE) 
@@ -162,7 +162,7 @@ reservoir_outlet <- function(
     cmd_out <- execGRASS("r.info", map=flowacc, flags="g", intern=T)
     type_line=which(grepl(cmd_out, pattern = "datatype=")) #search for line holding data type
     data_type=strsplit(cmd_out[type_line], split = "=")[[1]][2]
-    if (data_type=="CELL") #if flowaccum is already integer, use it. Otherwise, create interger variant
+    if (data_type=="CELL") #if flowaccum is already integer, use it. Otherwise, create integer variant
       x <- execGRASS("g.copy", raster=paste0(flowacc,",accum_t"), flags=c("overwrite"), intern=T) else
       x <- execGRASS("r.mapcalc", expression=paste0("accum_t = round(", flowacc, ")"), flags=c("overwrite"), intern=T)
     

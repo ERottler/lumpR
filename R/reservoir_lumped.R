@@ -342,10 +342,12 @@ reservoir_lumped <- function(
     }
     
     # determine size class for each reservoir
-    if("volume" %in% ncols)
+    if("volume" %in% ncols){
       res_lump$size_class <- as.integer(cut(res_lump$volume, c(0, res_param$vol_max), labels=res_param$class))
-    else 
+      }else{
       res_lump$size_class <- as.integer(cut(res_lump$area, c(0, res_param$area_max), labels=res_param$class))
+      } 
+      
     
     # calculate volume for reservoirs if it does not exist
     if((!"volume" %in% names(res_lump@data)))

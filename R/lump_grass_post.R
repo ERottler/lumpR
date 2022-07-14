@@ -320,7 +320,7 @@ lump_grass_post <- function(
   tmp_file <- file(tempfile(), open="wt")
   sink(tmp_file, type="output")
   
-  # also supress warnings in silent mode
+  # also suppress warnings in silent mode
   if(silent){
     tmp_file2 <- file(tempfile(), open="wt")
     sink(tmp_file2, type="message")

@@ -372,7 +372,7 @@ area2catena <- function(
     if (exists("cl")) #close cluster, if existing
       stopCluster(cl)
     
-    # check if anything was produced (if NULL an unexpected error might have occured)
+    # check if anything was produced (if NULL an unexpected error might have occurred)
     if(is.null(logdata) || (nrow(logdata)==0))
       stop("Error: No valid EHAs remaining after processing. Something's fishy, check the warnings, eha_subset and coverage of the layers.")
     
@@ -445,7 +445,7 @@ area2catena <- function(
     
     #generate qualitative-data reclassification file
     #Generate output files for reclassification (input class-IDs vs. internally used IDs)
-    #(area2catena creates continuous class numbering; restoring the orginal classes will require these files)
+    #(area2catena creates continuous class numbering; restoring the original classes will require these files)
 
     for (i in 1:length(supp_qual)) {
       if (grass_files | grepl("^svc", supp_qual[i])) {

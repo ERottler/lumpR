@@ -94,7 +94,6 @@ db_extract_subcatch <- function(
   junk <- lapply(dbname_new, db_create)
   con_new <- lapply(dbname_new, connect_db)
   
-  
   if(verbose) message("% OK")
   
   

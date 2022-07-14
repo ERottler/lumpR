@@ -447,7 +447,7 @@ prof_class <- function(
     while (iw <= iw_max) {
       
       
-      # ensure reproducible random numbers for debugging / repeatitions
+      # ensure reproducible random numbers for debugging / repetitions
       set.seed(seed)
       
       # SUCCESSIVE weighting for each single attribute
