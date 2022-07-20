@@ -45,6 +45,8 @@
 #' @param silent \code{logical}. Shall the function be silent (also suppressing warnings
 #'      of internally used GRASS functions)? Default: \code{FALSE}.
 #'      
+#' @param remove_mask \code{logical}. Shall MASK for limiting raster operation be removed? Default: \code{TRUE}.
+#'            
 #' @return Function returns nothing, but produces \code{outlets_vect}. \bold{WARNING:} Up to version 2.5.0 this function
 #' returned a \code{SpatialPoints} object with the outlet coordinates.
 #'      
@@ -80,7 +82,8 @@ reservoir_outlet <- function(
   ### PARAMETERS ###
   keep_temp = FALSE,
   overwrite = FALSE,
-  silent=F
+  silent=F,
+  remove_mask =T
 ) {
   
   
@@ -136,8 +139,11 @@ reservoir_outlet <- function(
   
   tryCatch({
     
-    # remove mask if any
-    tryCatch(suppressWarnings(execGRASS("r.mask", flags=c("r"))), error=function(e){})
+    # remove mask
+    if(remove_mask){
+      tryCatch(suppressWarnings(execGRASS("r.mask", flags=c("r"))), error=function(e){})      
+    }
+    
     
     # remove output of previous function calls if overwrite=T
     if (overwrite) {
@@ -154,8 +160,21 @@ reservoir_outlet <- function(
     
     # GRASS calculation of flow accumulation
     if (is.null(flowacc)) {
+      
+      if(!silent) message("%")
+      if(!silent) message("% Calculate flow accumulation...")
+      if(!silent) message("%")
+      
       flowacc <- "accum_t"
       x <- execGRASS("r.watershed", elevation=dem, accumulation=flowacc, flags="s", intern=T)
+      
+      # check flowaccum raster for negative values
+      cmd_out <- execGRASS("r.univar", map="accum_t", separator="comma", flags=c("t"), intern=TRUE, ignore.stderr = TRUE)
+      cmd_out <- strsplit(cmd_out, ",")
+      cmd_cols <- grep("^min$", cmd_out[[1]])
+      min_acc <- as.numeric(cmd_out[[2]][cmd_cols])
+      if(min_acc < 0) warning("Negative flow accumulation values detected! This happens if cells get runoff from regions outside the study area, i.e. the extension of your DEM might be too small. Check if this could be a problem!")
+
     }
     
     # check if flowacc is integer

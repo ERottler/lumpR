@@ -40,6 +40,8 @@ Default: \code{FALSE}.}
 
 \item{silent}{\code{logical}. Shall the function be silent (also suppressing warnings
 of internally used GRASS functions)? Default: \code{FALSE}.}
+
+\item{remove_mask}{\code{logical}. Shall MASK for limiting raster operation be removed? Default: \code{TRUE}.}
 }
 \value{
 Function returns nothing, but produces \code{outlets_vect}. \bold{WARNING:} Up to version 2.5.0 this function
