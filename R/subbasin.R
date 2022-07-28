@@ -525,7 +525,11 @@ calc_subbas <- function(
     # put sub-catchments together
     subcatch_rasts <- paste0("basin_recl_",drainp_coords[,3], "_t")
     
-    iteration_nr= 0 #initialise counting variable; number of iterations needed to remove spurious subbas
+    #initialise counting variable; number of iterations needed to remove spurious subbas
+    iteration_nr= 0 
+    
+    #initialize variable that collects (internal) ids of sub-catchments removed
+    rm_sub_all <- NULL
     
     # if more than one sub-catchment
     if(no_catch > 1) {
@@ -624,6 +628,15 @@ calc_subbas <- function(
           #sub_sizes <- sub_sizes[-which(sub_sizes[,1] == 0),]
           sub_rm <- sub_sizes[which(sub_sizes[,2] < rm_spurious*thresh_sub),1] #internal subbas IDs below removal threshold
           
+          # check if removal already tried previous iteration
+          # when already tried in previous loop, do not try again
+          # removal can fail when sub-catchment from given drainage point and no upstream sub-catchment 
+          # (e.g., small headwater reservoirs and watershed boudariy)
+          sub_rm <- sub_rm[!sub_rm %in% rm_sub_all]
+          
+          # collect sub-catchments removed
+          rm_sub_all <- c(rm_sub_all, sub_rm)
+          
           if(length(sub_rm)>0) {
             
             # get external IDs in basin_recl_* to be removed (not identical with internal raster values of basin_all_t!)
@@ -693,6 +706,10 @@ calc_subbas <- function(
             x <- execGRASS("r.mapcalc", expression=paste0(points_processed, "_all_t=", points_processed, "_all2_t"), flags="overwrite", intern=T) # convert to regular map
             # update no_catch
             no_catch <- no_catch - length(sub_rm_f)
+            
+            if(!silent) message(paste(c("% Removed catchments:", sub_rm_f,
+                                      "; New number of basins:", no_catch), collapse =  " "))
+            
           } else {
             break
           }
