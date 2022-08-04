@@ -367,10 +367,99 @@ calc_subbas <- function(
     drain_points_snap$nearest_line_id=NULL #we don't need this and this long field name causes trouble
     
     # export drain_points_snap to GRASS
-    suppressWarnings(writeVECT(drain_points_snap, paste0(points_processed, "_snapped_t"), v.in.ogr_flags = c("o","quiet")))
+    suppressWarnings(writeVECT(drain_points_snap, 
+                               paste0(points_processed, "_snapped_t"), 
+                               v.in.ogr_flags = c("o","quiet")))
     clean_temp_dir(paste0(points_processed, "_snapped_t"))
     
     if (length(drain_points_snap) < length(drain_points)) stop("Less points after snapping than in drain_points input!\nComputed stream segments are probably too coarse. Try a smaller value of thresh_stream to create a fine river network.")
+    
+    # check if by accident falsely snapped to cell with lower flow accumulation than before
+    # this can happen when very fine river network is given
+  
+    # move snapped drainage points to centers of raster cells
+    x <- execGRASS("v.to.rast", 
+                   input=paste0(points_processed,"_snapped_t"), 
+                   output=paste0(points_processed,"_snapped_t"), 
+                   use="attr", 
+                   attribute_column="subbas_id",
+                   flags="overwrite", 
+                   intern=T)
+    
+    x <- execGRASS("r.to.vect", 
+                   input=paste0(points_processed,"_snapped_t"),
+                   output=paste0(points_processed,"_snapped_centered_t"), 
+                   type="point", 
+                   flags = c("overwrite", "quiet"))
+    
+    # get values flow accumulation (shifted points before snapping)
+    x <- rgrass7::execGRASS("v.what.rast",
+                            map = paste0(points_processed,"_shifted_t"),
+                            raster = "flow_accum",
+                            column = "flow_accum")
+    
+    # get values flow accumulation (after snapping)
+    x <- rgrass7::execGRASS("v.what.rast",
+                            map = paste0(points_processed, "_snapped_centered_t"),
+                            raster = "accum_t",
+                            column = "flow_accum")
+    
+    # get flow accumulation of drain points from GRASS
+    drain_points_db <- strsplit(rgrass7::execGRASS("v.db.select", 
+                                                   map=paste0(points_processed,"_shifted_t"),
+                                                   separator = "comma", intern = T),  ",")
+    
+    drain_points_df <- do.call(rbind.data.frame, drain_points_db)
+    colnames(drain_points_df) <- as.character(drain_points_df[1, ])
+    drain_points_df <- drain_points_df[-1, ]
+    
+    # get flow accumulation of snapped drain points from GRASS
+    drain_points_snapped_db <- strsplit(rgrass7::execGRASS("v.db.select", 
+                                                           map=paste0(points_processed, "_snapped_centered_t"),
+                                                           separator = "comma", intern = T), ",")
+    
+    drain_points_snapped_df <- do.call(rbind.data.frame, drain_points_snapped_db)
+    colnames(drain_points_snapped_df) <- as.character(drain_points_snapped_df[1, ])
+    drain_points_snapped_df <- drain_points_snapped_df[-1, ]
+    
+    # check if subbas_id is available
+    if(!"subbas_id" %in% colnames(drain_points_snapped_df)){
+      drain_points_snapped_df$subbas_id <- drain_points_snapped_df$value
+    }
+  
+    # order by subbas_id
+    order_drain_points_subbas <- order(as.numeric(drain_points_df$subbas_id))
+    order_drain_points_snapped_subbas <- order(as.numeric(drain_points_snapped_df$subbas_id))
+    drain_points_df <- drain_points_df[order_drain_points_subbas, ]
+    drain_points_snapped_df <- drain_points_snapped_df[order_drain_points_snapped_subbas, ]
+    
+    # calculated changes in flow accumulation due to snapping to river network
+    flow_accu_dif <- as.numeric(drain_points_snapped_df$flow_accum) - as.numeric(drain_points_df$flow_accum)
+    
+    if(!silent) message(paste("Number of drainage points with different flow accumulation after snapping: ", 
+                              length(which(flow_accu_dif != 0)))) 
+    
+    if(length(which(flow_accu_dif < 0)) > 0){
+      
+      # drainage points with reduction in flow accumulation replaced with initial point location (centered + 1/4 shift)
+      # strong suspicion that falsely snapped due to very fine stream network
+      # warning message printed later on
+      
+      ids_false_snap <- drain_points_df$subbas_id[which(flow_accu_dif < 0)]
+      
+      drain_points_snap@coords[which(drain_points_snap@data$subbas_id %in% ids_false_snap), ] <-
+        drain_points@coords[which(drain_points@data$subbas_id %in% ids_false_snap), ]
+      
+      # export corrected snapped points to GRASS
+      suppressWarnings(writeVECT(drain_points_snap, 
+                                 paste0(points_processed, "_snapped_t"), 
+                                 v.in.ogr_flags = c("o","quiet", "overwrite")))
+      clean_temp_dir(paste0(points_processed, "_snapped_t"))
+      
+      if(!silent) message(paste("WARNING:", length(which(flow_accu_dif < 0)), "drainage points with lower flow accumulation than before snapping to stream network.",
+                                "Original drainage point location (centered to grid cell and shifted by 1/4 raster resolution) used, as false snapping due to fine river network suspected. Check output!")) 
+      
+    }
     
     if(!silent) message("% OK") 
     
@@ -707,8 +796,8 @@ calc_subbas <- function(
             # update no_catch
             no_catch <- no_catch - length(sub_rm_f)
             
-            if(!silent) message(paste(c("% Removed catchments:", sub_rm_f,
-                                      "; New number of basins:", no_catch), collapse =  " "))
+            if(!silent) message(paste(c("% Removed sub-basins:", sub_rm_f, "(internal id)",
+                                      "; New total number of sub-basins:", no_catch), collapse =  " "))
             
           } else {
             break
@@ -733,10 +822,23 @@ calc_subbas <- function(
     }
     
     # assign correct ids (from 'subbas_id') to basin_out
-    cmd_out <- execGRASS("r.to.vect", input = paste0(points_processed, "_all_t"), output = paste0(points_processed, "_all_t"),
-                         type = "point", column = "subbas_id", flags = c("overwrite", "quiet"), intern=T)
-    cmd_out <- execGRASS("v.db.addcolumn", map=paste0(points_processed, "_all_t"), columns="temp_id int", intern=TRUE) 
-    cmd_out <- execGRASS("v.what.rast", raster=paste0(basin_out, "_t"), map=paste0(points_processed, "_all_t"), column="temp_id" ,intern=T, ignore.stderr = T)
+    cmd_out <- execGRASS("r.to.vect", 
+                         input = paste0(points_processed, "_all_t"), 
+                         output = paste0(points_processed, "_all_t"),
+                         type = "point", 
+                         column = "subbas_id", 
+                         flags = c("overwrite", "quiet"), 
+                         intern=T)
+    
+    cmd_out <- execGRASS("v.db.addcolumn", 
+                         map=paste0(points_processed, "_all_t"), 
+                         columns="temp_id int", intern=TRUE) 
+    
+    cmd_out <- execGRASS("v.what.rast", 
+                         raster=paste0(basin_out, "_t"), 
+                         map=paste0(points_processed, "_all_t"), 
+                         column="temp_id" ,intern=T, ignore.stderr = T)
+    
     drain_points_snap <- readVECT(paste0(points_processed, "_all_t"))
     nas = which(is.na(drain_points_snap@data$temp_id))
     if (any(nas))
@@ -748,8 +850,12 @@ calc_subbas <- function(
     dat_rules <- paste(drain_points_snap@data$temp_id, "=", drain_points_snap@data$subbas_id, collapse = "\n") 
     tmp_file <- tempfile()
     write(dat_rules, file=tmp_file) # GRASS Gis reclass file: Old_ID = New_ID, temp_id is changed to subbas_id
-    cmd_out <- execGRASS("r.reclass", input = paste0(basin_out, "_t"), output = paste0(basin_out, "2_t"), rules = tmp_file)
-    cmd_out <- execGRASS("r.mapcalc", expression = paste0(basin_out, "=", basin_out, "2_t"), intern = T)
+    cmd_out <- execGRASS("r.reclass", 
+                         input = paste0(basin_out, "_t"), 
+                         output = paste0(basin_out, "2_t"), 
+                         rules = tmp_file)
+    cmd_out <- execGRASS("r.mapcalc", 
+                         expression = paste0(basin_out, "=", basin_out, "2_t"), intern = T)
     
     no_cross <- length(execGRASS("r.stats", input=basin_out, flags=c("n"), intern=T, ignore.stderr = T))
     if(no_catch != no_cross) warning(paste0("\nNumber of categories in ", basin_out, " not equal to number of drainage points!\nThis might be because there are drainage points outside the catchment of the defined outlet or due to small inconsistencies between calculated and manually defined (and snapped) drainage points. However, you should check the output with the GRASS GUI and consider the help pages of this function. 
