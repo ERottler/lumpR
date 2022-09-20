@@ -513,7 +513,7 @@ lump_grass_post <- function(
       sub_lu_stats <- NULL
       s_row <- 0
       for (SUB in sub_stats[,1]) {
-        
+
         s_row <- s_row +1
         
         # bounding box of current subbasin
@@ -895,7 +895,7 @@ channel_length <- function(horton, flowdir, resol) {
     # accmax <- max(as.numeric(execGRASS("r.stats", input=flowacc, flags=c("n", "1"), intern=T, ignore.stderr = T))) # max flowacc
     # execGRASS("r.mapcalculator", amap=flowacc, outfile="stream_main_t", 
     #           formula=paste0("if(A == ", sprintf(accmax, fmt="%d"), ", 1, null())"))
-    warning(paste("Subbasin ", sub_no, " has no main channel. Assume at least one raster cell.", sep=""))
+    warning(paste("Subbasin with no main channel. Assume length of one raster cell.", sep=""))
 
   } else {
     
@@ -912,33 +912,47 @@ channel_length <- function(horton, flowdir, resol) {
   }
   
   return(chan_len)
+  
 } # EOF
 
 
 # main channel slope #---------------------------------------------------------
 # returns average slope of main channel [m/m]
 channel_slope <- function(horton, accum, dem, chan_len) {  
+  
   if (is.na(chan_len) ) return(NA)
 
-  # determine main channel (largest value in Horton stream order)
-  main_chan <- na.exclude(unique(c(horton)))
-  
-  # determine raster cells of main channel
-  max_val <- max(main_chan)
-  r_main <- which(horton==max_val)
-  
-  # min and max values of flow accumulation within main channel to determin flow direction
-  acc_min <- which.min(accum[r_main])
-  acc_max <- which.max(accum[r_main])
-  
-  # get dem values for respective raster cells of min and max flowacc
-  dem_vals <- dem[r_main][c(acc_max, acc_min)]
-  
-  # compute slope [m/m]
-  chan_slope <- diff(dem_vals) / chan_len
-  
-  # slope zero not allowed -> at least 0.00001
-  chan_slope <- max(chan_slope, 0.00001)
+  # if there is no main channel (e.g. in very small reservoir subbasins)
+  # assume very small gradient (slope zero not allowed)
+  if (length(na.exclude(unique(c(horton)))) == 0) {
+    
+    chan_slope <- 0.00001 # m/m
+    
+    warning(paste("Subbasin with no main channel. Assume slope of 0.00001.", sep=""))
+    
+  }else{
+    
+    # determine main channel (largest value in Horton stream order)
+    main_chan <- na.exclude(unique(c(horton)))
+    
+    # determine raster cells of main channel
+    max_val <- max(main_chan)
+    r_main <- which(horton==max_val)
+    
+    # min and max values of flow accumulation within main channel to determine flow direction
+    acc_min <- which.min(accum[r_main])
+    acc_max <- which.max(accum[r_main])
+    
+    # get dem values for respective raster cells of min and max flowacc
+    dem_vals <- dem[r_main][c(acc_max, acc_min)]
+    
+    # compute slope [m/m]
+    chan_slope <- diff(dem_vals) / chan_len
+    
+    # slope zero not allowed -> at least 0.00001
+    chan_slope <- max(chan_slope, 0.00001)
+    
+  }
   
   return(chan_slope)
 }
