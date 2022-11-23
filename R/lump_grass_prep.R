@@ -486,8 +486,8 @@ lump_grass_prep <- function(
       svc_cats_unl <- unlist(svc_cats_spl)
       svc_cats_num <- as.numeric(gsub("category|Category", "", svc_cats_unl))
 
-      if(length(svc_cats_num) %% 5 == 0) {
-        stop("Unexpected output format of r.category while computing svs!")
+      if(length(svc_cats_num) %% 5 != 0) {
+        stop("Unexpected output format of r.category while computing SVCs!")
       }
   
       if (!is.null(watermask) & !is.null(imperviousmask)) {
